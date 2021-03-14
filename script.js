@@ -1,9 +1,8 @@
-const Color = require('color');
-
 // https://www.youtube.com/watch?v=EK32jo7i5LQ
 
 const targetFPS = 60
 const targetFrameDuration = (1000 / targetFPS)
+const hueCache = {};
 
 global.canvas = document.getElementById('canvas')
 global.ctx = canvas.getContext('2d')
@@ -39,31 +38,32 @@ function getYOnCircle(radius, radian, y) {
 }
 
 
-const dots = 2000;
+const dots = 1000;
 
 
 const width = window.innerWidth
 const height = window.innerHeight
 
-const canvasData = ctx.getImageData(0, 0, width, height);
-
+let canvasData = ctx.getImageData(0, 0, width, height);
 
 
 function wipeCanvasData() {
+  canvasData = ctx.createImageData(width, height);
+}
 
-  for (let i = 0; i < canvasData.data.length; i++) {
-    canvasData.data[i] = 0;
-  }
+function isOutsideOfCanvas(x, y) {
+
+  return x < 0 || y < 0 || x > width || y > height;
 }
 
 // That's how you define the value of a pixel //
 function drawPixel(x, y, r, g, b, a) {
+  var index = (x + y * width) * 4;
 
-  if (x < 0 || y < 0 || x > width || y > height) {
-    return
+  if (isOutsideOfCanvas(x, y)) {
+    return;
   }
 
-  var index = (x + y * width) * 4;
 
   canvasData.data[index + 0] = r;
   canvasData.data[index + 1] = g;
@@ -80,43 +80,28 @@ function updateCanvas() {
 
 let rotation = 0;
 
-
-
-let startColor = Color({ r: 0, g: 255, b: 0 });
-const colorModifier = 1;
-const modifier = 0.1; // 0.1 - 1 reasonable
+const modifier = 0.05; // 0.01 - 1 reasonable
 
 function spiral(start) {
 
+  let hue = 0;
 
-
-  rotation += -0.001;
+  rotation += -0.01;
 
   for (let i = 0; i < dots; i += modifier) {
 
+    const x = Math.floor(getXOnCircle(i, i + rotation + start, width / 2));
+    const y = Math.floor(getYOnCircle(i, i + rotation + start, height / 2));
 
-    const oldX = Math.floor(getXOnCircle(i - modifier, i - modifier + rotation + start, width / 2));
-    const oldY = Math.floor(getYOnCircle(i - modifier, i - modifier + rotation + start, height / 2));
+    if (!isOutsideOfCanvas(x, y)) {
 
-    const newX = Math.floor(getXOnCircle(i, i + rotation + start, width / 2));
-    const newY = Math.floor(getYOnCircle(i, i + rotation + start, height / 2));
+      hue = (hue + 1) % 360
 
-    const oldIndex = (oldX + oldY * width) * 4;
+      const [r, g, b] = hsv2rgb(hue, 1, 1)
 
-    const oldR = canvasData.data[oldIndex + 0];
-    const oldG = i === 0 ? 255 : canvasData.data[oldIndex + 1];
-    const oldB = canvasData.data[oldIndex + 2];
-
-    const oldColor = Color({ r: oldR, g: oldG, b: oldB });
-
-    const rotatedColor = oldColor.rotate(colorModifier);
-
-    const colorArr = rotatedColor.rgb().array();
-
-    drawPixel(newX, newY, colorArr[0], colorArr[1], colorArr[2], 255);
+      drawPixel(x, y, r, g, b, 255);
+    }
   }
-
-
 }
 
 function loop() {
@@ -134,3 +119,45 @@ function loop() {
 }
 
 loop()
+
+// hue in range [0, 360]
+// saturation, value in range [0,1]
+// return [r,g,b] each in range [0,255]
+// See: https://en.wikipedia.org/wiki/HSL_and_HSV#From_HSV
+
+
+function hsv2rgb(hue, saturation, value) {
+
+  const key = `${hue}${saturation}${value}`;
+  if (hueCache[key]) {
+    return hueCache[key];
+  }
+
+  let chroma = value * saturation;
+  let hue1 = hue / 60;
+  let x = chroma * (1 - Math.abs((hue1 % 2) - 1));
+  let r1, g1, b1;
+  if (hue1 >= 0 && hue1 <= 1) {
+    ([r1, g1, b1] = [chroma, x, 0]);
+  } else if (hue1 >= 1 && hue1 <= 2) {
+    ([r1, g1, b1] = [x, chroma, 0]);
+  } else if (hue1 >= 2 && hue1 <= 3) {
+    ([r1, g1, b1] = [0, chroma, x]);
+  } else if (hue1 >= 3 && hue1 <= 4) {
+    ([r1, g1, b1] = [0, x, chroma]);
+  } else if (hue1 >= 4 && hue1 <= 5) {
+    ([r1, g1, b1] = [x, 0, chroma]);
+  } else if (hue1 >= 5 && hue1 <= 6) {
+    ([r1, g1, b1] = [chroma, 0, x]);
+  }
+
+  let m = value - chroma;
+  let [r, g, b] = [r1 + m, g1 + m, b1 + m];
+
+  // Change r,g,b values from [0,1] to [0,255]
+  const res = [255 * r, 255 * g, 255 * b];
+
+  hueCache[key] = res;
+
+  return res;
+}
