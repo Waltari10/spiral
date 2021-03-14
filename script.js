@@ -86,7 +86,7 @@ function spiral(start) {
 
   let hue = 0;
 
-  rotation += -0.01;
+  rotation += -0.002;
 
   for (let i = 0; i < dots; i += modifier) {
 
