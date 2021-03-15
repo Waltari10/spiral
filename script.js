@@ -80,7 +80,7 @@ function updateCanvas() {
 
 let rotation = 0;
 
-const modifier = 0.05; // 0.01 - 1 reasonable
+const modifier = 0.09; // 0.01 - 1 reasonable
 
 function spiral(start) {
 
@@ -95,7 +95,7 @@ function spiral(start) {
 
     if (!isOutsideOfCanvas(x, y)) {
 
-      hue = (hue + 1) % 360
+      hue = (hue + 0.5) % 360
 
       const [r, g, b] = hsv2rgb(hue, 1, 1)
 
@@ -109,7 +109,7 @@ function loop() {
   const startTime = Date.now()
   wipeCanvasData();
   spiral(0);
-  // spiral(Math.PI);
+  spiral(Math.PI);
   updateCanvas();
   const renderTime = Date.now() - startTime
   timeDelta = renderTime < targetFrameDuration ? targetFrameDuration : renderTime
@@ -124,8 +124,6 @@ loop()
 // saturation, value in range [0,1]
 // return [r,g,b] each in range [0,255]
 // See: https://en.wikipedia.org/wiki/HSL_and_HSV#From_HSV
-
-
 function hsv2rgb(hue, saturation, value) {
 
   const key = `${hue}${saturation}${value}`;
